@@ -45,7 +45,7 @@ CONTENT_BACKUP_DISK=content_backups
 CONTENT_BACKUP_ROOT=
 ```
 
-The default source is `content/collections` and the default extension is `md`. `config/content-backup.php` can add paths or set `exclude` prefixes such as `members`.
+The default source is `content/collections` and the default extension is `md`. Keys keep the path under `content/`, so `content/collections/blog/post.md` is stored as `collections/blog/post.md`. `config/content-backup.php` can add paths or set `exclude` prefixes such as `collections/members`.
 
 `CONTENT_BACKUP_RETENTION` counts snapshot folders. A run every 6 hours with a retention of 14 keeps 14 snapshots, about three and a half days. The package does not register a schedule. Each site decides when it runs:
 

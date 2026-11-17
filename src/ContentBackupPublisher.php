@@ -131,6 +131,7 @@ class ContentBackupPublisher
             (array) config('content-backup.extensions', ['md']),
         );
 
+        $base = $this->basePath();
         $files = [];
 
         foreach ($paths as $path) {
@@ -152,7 +153,7 @@ class ContentBackupPublisher
             }
 
             foreach ($finder as $file) {
-                $key = $this->key($file);
+                $key = $this->key($file, $base);
 
                 if ($this->excluded($key) || ! in_array(strtolower($file->getExtension()), $extensions, true)) {
                     continue;
@@ -192,9 +193,33 @@ class ContentBackupPublisher
         return array_values($files);
     }
 
-    private function key(SplFileInfo $file): string
+    private function basePath(): string
     {
-        return str_replace('\\', '/', $file->getRelativePathname());
+        $configured = config('content-backup.base');
+
+        if (! is_string($configured) || $configured === '') {
+            throw new RuntimeException('Content backup has no content base configured.');
+        }
+
+        $base = realpath($configured);
+
+        if ($base === false || ! is_dir($base)) {
+            throw new RuntimeException("Content backup base [{$configured}] is not a directory.");
+        }
+
+        return str_replace('\\', '/', $base);
+    }
+
+    private function key(SplFileInfo $file, string $base): string
+    {
+        $absolute = $file->getRealPath() ?: $file->getPathname();
+        $path = str_replace('\\', '/', $absolute);
+
+        if ($path !== $base && ! str_starts_with($path, $base.'/')) {
+            throw new RuntimeException("Content backup file [{$path}] is outside [{$base}].");
+        }
+
+        return ltrim(substr($path, strlen($base)), '/');
     }
 
     private function excluded(string $key): bool

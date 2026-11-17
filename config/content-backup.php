@@ -9,11 +9,14 @@ return [
     | Sources
     |--------------------------------------------------------------------------
     |
-    | Directories whose files are copied. Object keys are the path relative
-    | to each directory, so content/collections/blog/post.md is stored as
-    | blog/post.md. Two directories must not produce the same key.
+    | Directories whose files are copied. Object keys keep the path relative
+    | to the Statamic content directory, so content/collections/blog/post.md
+    | is stored as collections/blog/post.md. Two directories must not
+    | produce the same key.
     |
     */
+
+    'base' => base_path('content'),
 
     'paths' => [
         base_path('content/collections'),
@@ -22,8 +25,9 @@ return [
     'extensions' => ['md'],
 
     /*
-    | Relative prefixes to skip, such as "members" or "staff_directory".
-    | A prefix matches that path and everything inside it.
+    | Prefixes to skip, relative to the content directory, such as
+    | "collections/members". A prefix matches that path and everything
+    | inside it.
     |
     */
 
