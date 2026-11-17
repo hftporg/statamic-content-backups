@@ -9,20 +9,19 @@ return [
     | Sources
     |--------------------------------------------------------------------------
     |
-    | Directories whose files are copied. Object keys keep the path relative
-    | to the Statamic content directory, so content/collections/blog/post.md
-    | is stored as collections/blog/post.md. Two directories must not
-    | produce the same key.
+    | Globs relative to the content directory. Each glob selects one set of
+    | files, so one directory can contribute markdown while another
+    | contributes yaml. ** crosses directories. A star stays inside one
+    | directory. Keys keep the path under content/, and two globs must not
+    | select the same file.
     |
     */
 
     'base' => base_path('content'),
 
-    'paths' => [
-        base_path('content/collections'),
+    'sources' => [
+        'collections/**/*.md',
     ],
-
-    'extensions' => ['md'],
 
     /*
     | Prefixes to skip, relative to the content directory, such as

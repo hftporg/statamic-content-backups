@@ -23,7 +23,7 @@ class ContentBackupPublisherTest extends TestCase
 
         config([
             'content-backup.base' => $this->root.'/content',
-            'content-backup.paths' => [$this->root.'/content/collections'],
+            'content-backup.sources' => ['collections/**/*.md'],
             'content-backup.retention' => 14,
             'content-backup.exclude' => [],
             'filesystems.disks.content_backups' => [
@@ -82,6 +82,43 @@ class ContentBackupPublisherTest extends TestCase
         $this->assertSame($expected, $current);
         $this->assertSame($expected, $latest);
         $this->assertSame([...$expected, 'changed' => ['collections/blog/post.md'], 'removed' => []], $dated);
+    }
+
+    public function test_sources_can_mix_markdown_and_yaml_globs(): void
+    {
+        config(['content-backup.sources' => [
+            'collections/**/*.md',
+            'taxonomies/**/*.yaml',
+        ]]);
+        $this->writeFile('collections/blog/post.md', 'post');
+        $this->writeFile('collections/blog/nested/part.md', 'part');
+        $this->writeFile('collections/blog/meta.yaml', 'meta');
+        $this->writeFile('taxonomies/topics/topic.yaml', 'topic');
+        $this->writeFile('taxonomies/topics/note.md', 'note');
+
+        $this->publisher()->publish();
+
+        $disk = Storage::disk('content_backups');
+
+        $this->assertSame('post', $disk->get('latest/collections/blog/post.md'));
+        $this->assertSame('part', $disk->get('latest/collections/blog/nested/part.md'));
+        $this->assertSame('topic', $disk->get('latest/taxonomies/topics/topic.yaml'));
+        $this->assertFalse($disk->exists('latest/collections/blog/meta.yaml'));
+        $this->assertFalse($disk->exists('latest/taxonomies/topics/note.md'));
+    }
+
+    public function test_a_single_star_does_not_cross_directories(): void
+    {
+        config(['content-backup.sources' => ['collections/blog/*.md']]);
+        $this->writeFile('collections/blog/post.md', 'post');
+        $this->writeFile('collections/blog/nested/part.md', 'part');
+
+        $this->publisher()->publish();
+
+        $disk = Storage::disk('content_backups');
+
+        $this->assertSame('post', $disk->get('latest/collections/blog/post.md'));
+        $this->assertFalse($disk->exists('latest/collections/blog/nested/part.md'));
     }
 
     public function test_excluded_prefixes_are_left_out(): void
@@ -197,7 +234,7 @@ class ContentBackupPublisherTest extends TestCase
 
     public function test_publish_fails_when_the_source_directory_is_missing(): void
     {
-        config(['content-backup.paths' => [$this->root.'/missing']]);
+        config(['content-backup.sources' => ['missing/**/*.md']]);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('is not a directory');
@@ -245,7 +282,7 @@ class ContentBackupPublisherTest extends TestCase
         $outside = sys_get_temp_dir().'/content-backup-outside-'.uniqid();
         mkdir($outside.'/blog', 0777, true);
         file_put_contents($outside.'/blog/post.md', 'outside');
-        config(['content-backup.paths' => [$outside]]);
+        config(['content-backup.sources' => [$outside.'/**/*.md']]);
 
         try {
             $this->expectException(RuntimeException::class);
@@ -260,9 +297,9 @@ class ContentBackupPublisherTest extends TestCase
     public function test_publish_fails_when_two_sources_share_a_relative_path(): void
     {
         $this->writeFile('collections/blog/post.md', 'first');
-        config(['content-backup.paths' => [
-            $this->root.'/content/collections',
-            $this->root.'/content/collections/blog',
+        config(['content-backup.sources' => [
+            'collections/**/*.md',
+            'collections/blog/*.md',
         ]]);
 
         $this->expectException(RuntimeException::class);

@@ -120,42 +120,30 @@ class ContentBackupPublisher
      */
     private function files(): array
     {
-        $paths = config('content-backup.paths');
+        $sources = config('content-backup.sources');
 
-        if (! is_array($paths) || $paths === []) {
-            throw new RuntimeException('Content backup has no source paths configured.');
+        if (! is_array($sources) || $sources === []) {
+            throw new RuntimeException('Content backup has no sources configured.');
         }
-
-        $extensions = array_map(
-            fn (mixed $extension): string => strtolower((string) $extension),
-            (array) config('content-backup.extensions', ['md']),
-        );
 
         $base = $this->basePath();
         $files = [];
 
-        foreach ($paths as $path) {
-            $directory = (string) $path;
-
-            if (! is_dir($directory)) {
-                throw new RuntimeException("Content backup source [{$directory}] is not a directory.");
-            }
+        foreach ($sources as $source) {
+            $pattern = $this->sourcePattern((string) $source, $base);
+            $regex = $this->globToRegex($pattern);
 
             $finder = (new Finder)
                 ->files()
-                ->in($directory)
+                ->in($this->sourceDirectory($base, $pattern))
                 ->ignoreDotFiles(true)
                 ->ignoreVCS(true)
                 ->sortByName();
 
-            foreach ($extensions as $extension) {
-                $finder->name('*.'.$extension);
-            }
-
             foreach ($finder as $file) {
                 $key = $this->key($file, $base);
 
-                if ($this->excluded($key) || ! in_array(strtolower($file->getExtension()), $extensions, true)) {
+                if (preg_match($regex, $key) !== 1 || $this->excluded($key)) {
                     continue;
                 }
 
@@ -185,12 +173,108 @@ class ContentBackupPublisher
         }
 
         if ($files === []) {
-            throw new RuntimeException('Content backup found no files to publish. Check content-backup.paths, extensions, and exclude.');
+            throw new RuntimeException('Content backup found no files to publish. Check content-backup.sources and exclude.');
         }
 
         ksort($files);
 
         return array_values($files);
+    }
+
+    private function sourcePattern(string $source, string $base): string
+    {
+        $source = trim(str_replace('\\', '/', $source));
+
+        if ($source === '') {
+            throw new RuntimeException('Content backup source is empty.');
+        }
+
+        if (str_contains($source, '..')) {
+            throw new RuntimeException("Content backup source [{$source}] cannot contain '..'.");
+        }
+
+        $configured = rtrim(str_replace('\\', '/', (string) config('content-backup.base')), '/');
+
+        foreach ([$configured, $base] as $prefix) {
+            if ($prefix !== '' && ($source === $prefix || str_starts_with($source, $prefix.'/'))) {
+                $source = ltrim(substr($source, strlen($prefix)), '/');
+
+                break;
+            }
+        }
+
+        if ($this->isAbsolute($source)) {
+            throw new RuntimeException("Content backup source [{$source}] is outside [{$base}].");
+        }
+
+        return ltrim($source, '/');
+    }
+
+    private function isAbsolute(string $path): bool
+    {
+        return str_starts_with($path, '/') || preg_match('/^[A-Za-z]:\//', $path) === 1;
+    }
+
+    private function sourceDirectory(string $base, string $pattern): string
+    {
+        $prefix = [];
+
+        foreach (explode('/', $pattern) as $segment) {
+            if ($segment === '' || strpbrk($segment, '*?') !== false) {
+                break;
+            }
+
+            $prefix[] = $segment;
+        }
+
+        $directory = $prefix === [] ? $base : $base.'/'.implode('/', $prefix);
+
+        if (! is_dir($directory)) {
+            throw new RuntimeException("Content backup source [{$directory}] is not a directory.");
+        }
+
+        return $directory;
+    }
+
+    private function globToRegex(string $glob): string
+    {
+        $regex = '';
+        $length = strlen($glob);
+
+        for ($offset = 0; $offset < $length; $offset++) {
+            $character = $glob[$offset];
+
+            if ($character === '*' && ($glob[$offset + 1] ?? '') === '*') {
+                $offset++;
+
+                if (($glob[$offset + 1] ?? '') === '/') {
+                    $offset++;
+                    $regex .= '(?:.*/)?';
+
+                    continue;
+                }
+
+                $regex .= '.*';
+
+                continue;
+            }
+
+            if ($character === '*') {
+                $regex .= '[^/]*';
+
+                continue;
+            }
+
+            if ($character === '?') {
+                $regex .= '[^/]';
+
+                continue;
+            }
+
+            $regex .= preg_quote($character, '#');
+        }
+
+        return '#^'.$regex.'$#';
     }
 
     private function basePath(): string
