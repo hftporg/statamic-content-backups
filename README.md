@@ -21,7 +21,7 @@ php artisan vendor:publish --tag=content-backup-config
 
 ## Disk
 
-Point `content-backup.disk` at an `s3` disk in `config/filesystems.php`. The package reads that disk and does not take bucket credentials. DigitalOcean Spaces uses this driver with its own endpoint. Set `root` when sites share a bucket and need different prefixes. Leave `root` empty for a dedicated bucket. `throw` should be true.
+Point `content-backup.disk` at an `s3` disk in `config/filesystems.php`. The package reads that disk and does not take bucket credentials. DigitalOcean Spaces uses this driver with its own endpoint. Objects are stored at the bucket root. `throw` should be true.
 
 ```php
 'content_backups' => [
@@ -33,7 +33,6 @@ Point `content-backup.disk` at an `s3` disk in `config/filesystems.php`. The pac
     'endpoint' => env('CONTENT_BACKUP_ENDPOINT'),
     'url' => env('CONTENT_BACKUP_URL'),
     'use_path_style_endpoint' => false,
-    'root' => env('CONTENT_BACKUP_ROOT', ''),
     'visibility' => 'private',
     'throw' => true,
 ],
@@ -75,7 +74,7 @@ Wait until `current.json` matches the tree you are reading.
 
 `published: false` stays in the file. A path that disappears from `latest/` was deleted. This package does not interpret either signal.
 
-The bucket is private. Grant the ingest read access to the bucket or prefix.
+The bucket is private. Grant the ingest read access to the bucket.
 
 ## Manual run
 

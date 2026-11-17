@@ -48,9 +48,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Name of an s3 disk in the application's filesystems config. That disk
-    | owns the bucket, endpoint, credentials, and root prefix. The driver
-    | must be s3, which is what S3-compatible services such as DigitalOcean
-    | Spaces use.
+    | owns the bucket, endpoint, and credentials. Objects are stored at the
+    | bucket root. The driver must be s3, which is what S3-compatible
+    | services such as DigitalOcean Spaces use.
     |
     */
 
