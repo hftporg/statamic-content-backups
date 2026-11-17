@@ -65,4 +65,4 @@ The bucket is private. Grant the ingest read access to the bucket or prefix.
 php artisan content-backup:run
 ```
 
-The command runs even when `CONTENT_BACKUP_ENABLED` is false. The schedule does not.
+The command runs even when `CONTENT_BACKUP_ENABLED` is false. The schedule does not. The schedule also stays off until `CONTENT_BACKUP_BUCKET` is set, so a site without credentials does not enqueue a failing job.

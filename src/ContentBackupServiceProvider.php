@@ -125,9 +125,26 @@ class ContentBackupServiceProvider extends ServiceProvider
         }
     }
 
+    private function bucketConfigured(): bool
+    {
+        $bucket = config('content-backup.filesystem.bucket');
+
+        if (is_string($bucket) && $bucket !== '') {
+            return true;
+        }
+
+        $disk = config('filesystems.disks.'.config('content-backup.disk').'.bucket');
+
+        return is_string($disk) && $disk !== '';
+    }
+
     private function schedule(Schedule $schedule): void
     {
         if (! config('content-backup.enabled') || ! config('content-backup.schedule.enabled')) {
+            return;
+        }
+
+        if (! $this->bucketConfigured()) {
             return;
         }
 

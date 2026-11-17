@@ -22,6 +22,7 @@ abstract class TestCase extends Orchestra
      */
     protected function defineEnvironment($app): void
     {
+        $app['config']->set('content-backup.filesystem.bucket', 'testing-bucket');
         $app['config']->set('cache.default', 'array');
         $app['config']->set('queue.default', 'sync');
 
