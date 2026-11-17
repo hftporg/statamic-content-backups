@@ -13,8 +13,6 @@ composer config repositories.statamic-content-backups vcs https://github.com/hft
 composer require hftp/statamic-content-backups:dev-main
 ```
 
-Require `dev-main` until the package is tagged `v1.0.0`.
-
 Publish the config when a site needs paths or excludes that differ from the defaults:
 
 ```bash
