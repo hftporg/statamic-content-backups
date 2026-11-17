@@ -6,18 +6,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Enabled
-    |--------------------------------------------------------------------------
-    |
-    | When this is false the nightly schedule is not registered. The
-    | content-backup:run command still publishes a snapshot.
-    |
-    */
-
-    'enabled' => env('CONTENT_BACKUP_ENABLED', true),
-
-    /*
-    |--------------------------------------------------------------------------
     | Sources
     |--------------------------------------------------------------------------
     |
@@ -54,22 +42,6 @@ return [
     'retention' => (int) env('CONTENT_BACKUP_RETENTION', 14),
 
     'disk' => env('CONTENT_BACKUP_DISK', 'content_backups'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Schedule
-    |--------------------------------------------------------------------------
-    |
-    | The job runs at this local time. The folder it writes is still the
-    | UTC date, so every site's bucket has the same layout.
-    |
-    */
-
-    'schedule' => [
-        'enabled' => env('CONTENT_BACKUP_SCHEDULE_ENABLED', true),
-        'time' => env('CONTENT_BACKUP_TIME', '02:00'),
-        'timezone' => env('CONTENT_BACKUP_TIMEZONE', 'America/New_York'),
-    ],
 
     /*
     |--------------------------------------------------------------------------

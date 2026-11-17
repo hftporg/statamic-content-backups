@@ -25,10 +25,7 @@ php artisan vendor:publish --tag=content-backup-config
 ## Environment
 
 ```dotenv
-CONTENT_BACKUP_ENABLED=true
 CONTENT_BACKUP_RETENTION=14
-CONTENT_BACKUP_TIME=02:00
-CONTENT_BACKUP_TIMEZONE=America/New_York
 CONTENT_BACKUP_BUCKET=
 CONTENT_BACKUP_AWS_ACCESS_KEY_ID=
 CONTENT_BACKUP_AWS_SECRET_ACCESS_KEY=
@@ -40,7 +37,19 @@ CONTENT_BACKUP_PREFIX=
 
 The default source is `content/collections` and the default extension is `md`. `config/content-backup.php` can add paths or set `exclude` prefixes such as `members`.
 
-Date folders are UTC. The schedule timezone only decides when the job starts.
+Date folders are UTC. The package does not register a schedule. Each site decides when it runs:
+
+```php
+use Hftp\StatamicContentBackups\Jobs\PublishContentBackup;
+use Illuminate\Support\Facades\Schedule;
+
+Schedule::job(PublishContentBackup::class)
+    ->dailyAt('02:00')
+    ->onOneServer()
+    ->withoutOverlapping(120);
+```
+
+`dailyAt()` uses `config('app.timezone')`. Add `->timezone('America/New_York')` when that zone is different from the one you want the clock read in.
 
 ## What the ingest reads
 
@@ -65,4 +74,4 @@ The bucket is private. Grant the ingest read access to the bucket or prefix.
 php artisan content-backup:run
 ```
 
-The command runs even when `CONTENT_BACKUP_ENABLED` is false. The schedule does not. The schedule also stays off until `CONTENT_BACKUP_BUCKET` is set, so a site without credentials does not enqueue a failing job.
+The command runs the publish in the current process. The scheduled job is the one that uses the `content-backup` queue.

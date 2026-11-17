@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Hftp\StatamicContentBackups\Tests;
 
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 
 class ContentBackupDisabledTest extends TestCase
@@ -16,7 +15,6 @@ class ContentBackupDisabledTest extends TestCase
     {
         parent::defineEnvironment($app);
 
-        $app['config']->set('content-backup.enabled', false);
         $app['config']->set('queue.connections.content-backup', [
             'driver' => 'sync',
             'queue' => 'custom',
@@ -31,11 +29,6 @@ class ContentBackupDisabledTest extends TestCase
             'throw' => false,
             'visibility' => 'public',
         ]);
-    }
-
-    public function test_a_disabled_backup_is_not_scheduled(): void
-    {
-        $this->assertSame([], app(Schedule::class)->events());
     }
 
     public function test_an_existing_queue_connection_supervisor_and_disk_are_left_alone(): void

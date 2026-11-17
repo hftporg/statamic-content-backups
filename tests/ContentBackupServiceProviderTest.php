@@ -9,19 +9,9 @@ use Illuminate\Console\Scheduling\Schedule;
 
 class ContentBackupServiceProviderTest extends TestCase
 {
-    public function test_the_backup_job_is_scheduled_daily_at_two_eastern(): void
+    public function test_the_package_does_not_register_a_schedule(): void
     {
-        $events = app(Schedule::class)->events();
-
-        $this->assertCount(1, $events);
-
-        $event = $events[0];
-
-        $this->assertSame(PublishContentBackup::class, $event->description);
-        $this->assertSame('0 2 * * *', $event->expression);
-        $this->assertSame('America/New_York', $event->timezone);
-        $this->assertTrue($event->onOneServer);
-        $this->assertTrue($event->withoutOverlapping);
+        $this->assertSame([], app(Schedule::class)->events());
     }
 
     public function test_horizon_supervisor_timeout_fits_between_the_job_and_retry_after(): void

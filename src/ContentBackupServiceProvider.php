@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Hftp\StatamicContentBackups;
 
 use Hftp\StatamicContentBackups\Console\BackupContentCommand;
-use Hftp\StatamicContentBackups\Jobs\PublishContentBackup;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\ServiceProvider;
 
 class ContentBackupServiceProvider extends ServiceProvider
@@ -31,10 +29,6 @@ class ContentBackupServiceProvider extends ServiceProvider
                 dirname(__DIR__).'/config/content-backup.php' => config_path('content-backup.php'),
             ], 'content-backup-config');
         }
-
-        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
-            $this->schedule($schedule);
-        });
     }
 
     private function registerDisk(): void
@@ -123,35 +117,5 @@ class ContentBackupServiceProvider extends ServiceProvider
                 ]);
             }
         }
-    }
-
-    private function bucketConfigured(): bool
-    {
-        $bucket = config('content-backup.filesystem.bucket');
-
-        if (is_string($bucket) && $bucket !== '') {
-            return true;
-        }
-
-        $disk = config('filesystems.disks.'.config('content-backup.disk').'.bucket');
-
-        return is_string($disk) && $disk !== '';
-    }
-
-    private function schedule(Schedule $schedule): void
-    {
-        if (! config('content-backup.enabled') || ! config('content-backup.schedule.enabled')) {
-            return;
-        }
-
-        if (! $this->bucketConfigured()) {
-            return;
-        }
-
-        $schedule->job(PublishContentBackup::class)
-            ->dailyAt((string) config('content-backup.schedule.time'))
-            ->timezone((string) config('content-backup.schedule.timezone'))
-            ->onOneServer()
-            ->withoutOverlapping(120);
     }
 }
