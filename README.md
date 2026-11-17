@@ -10,8 +10,10 @@ Add the repository and require the package:
 
 ```bash
 composer config repositories.statamic-content-backups vcs https://github.com/hftporg/statamic-content-backups.git
-composer require hftp/statamic-content-backups
+composer require hftp/statamic-content-backups:dev-main
 ```
+
+Require `dev-main` until the package is tagged `v1.0.0`.
 
 Publish the config when a site needs paths or excludes that differ from the defaults:
 
