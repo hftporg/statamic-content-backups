@@ -57,12 +57,12 @@ use Hftp\StatamicContentBackups\Jobs\PublishContentBackup;
 use Illuminate\Support\Facades\Schedule;
 
 Schedule::job(PublishContentBackup::class)
-    ->dailyAt('02:00')
+    ->daily()
     ->onOneServer()
     ->withoutOverlapping(120);
 ```
 
-`dailyAt()` uses `config('app.timezone')`. Add `->timezone('America/New_York')` when that zone is different from the one you want the clock read in.
+`daily()` runs at midnight in `config('app.timezone')`. Add `->timezone('America/New_York')` when that zone is different from the one you want the clock read in.
 
 ## What the ingest reads
 
