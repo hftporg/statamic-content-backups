@@ -59,6 +59,12 @@ class PublishContentBackup implements ShouldBeUnique, ShouldQueue
 
     public function handle(ContentBackupPublisher $publisher): void
     {
+        if (! config('content-backup.enabled')) {
+            Log::info('Content backup is disabled.');
+
+            return;
+        }
+
         $report = $publisher->publish();
 
         Log::info('Content backup published.', [

@@ -4,6 +4,7 @@ namespace Hftp\StatamicContentBackups\Tests;
 
 use Carbon\Carbon;
 use Hftp\StatamicContentBackups\ContentBackupPublisher;
+use Hftp\StatamicContentBackups\Jobs\PublishContentBackup;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -117,6 +118,26 @@ class ContentBackupPublisherTest extends TestCase
 
         $this->assertSame('post', $disk->get('latest/collections/blog/post.md'));
         $this->assertFalse($disk->exists('latest/collections/blog/nested/part.md'));
+    }
+
+    public function test_the_job_does_not_publish_when_disabled(): void
+    {
+        config(['content-backup.enabled' => false]);
+        $this->writeFile('collections/blog/post.md', 'hello');
+
+        (new PublishContentBackup)->handle($this->publisher());
+
+        $this->assertFalse(Storage::disk('content_backups')->exists('current.json'));
+    }
+
+    public function test_the_job_publishes_when_enabled(): void
+    {
+        config(['content-backup.enabled' => true]);
+        $this->writeFile('collections/blog/post.md', 'hello');
+
+        (new PublishContentBackup)->handle($this->publisher());
+
+        $this->assertSame('hello', Storage::disk('content_backups')->get('latest/collections/blog/post.md'));
     }
 
     public function test_excluded_prefixes_are_left_out(): void

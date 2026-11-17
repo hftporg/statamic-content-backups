@@ -40,10 +40,13 @@ Point `content-backup.disk` at an `s3` disk in `config/filesystems.php`. The pac
 ```
 
 ```dotenv
+CONTENT_BACKUP_ENABLED=false
 CONTENT_BACKUP_RETENTION=14
 CONTENT_BACKUP_DISK=content_backups
 CONTENT_BACKUP_ROOT=
 ```
+
+`CONTENT_BACKUP_ENABLED` defaults to false. The scheduled job returns without publishing until it is true. `content-backup:run` still publishes when you invoke it.
 
 Sources are globs relative to `content/`. The default is `collections/**/*.md`. Add another glob for a different directory or extension, such as `taxonomies/**/*.yaml`. `**` crosses directories and `*` stays inside one directory. Keys keep that path, so `content/collections/blog/post.md` is stored as `collections/blog/post.md`. `exclude` prefixes such as `collections/members` are also relative to `content/`.
 
@@ -56,7 +59,8 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::job(PublishContentBackup::class)
     ->dailyAt('02:00')
     ->onOneServer()
-    ->withoutOverlapping(120);
+    ->withoutOverlapping(120)
+    ->when(fn () => config('content-backup.enabled'));
 ```
 
 `dailyAt()` uses `config('app.timezone')`. Add `->timezone('America/New_York')` when that zone is different from the one you want the clock read in.

@@ -15,6 +15,14 @@ return [
     |
     */
 
+    /*
+    | The scheduler can register the backup in every environment. It runs
+    | only when this is true. Set CONTENT_BACKUP_ENABLED=true in production.
+    |
+    */
+
+    'enabled' => (bool) env('CONTENT_BACKUP_ENABLED', false),
+
     'base' => base_path('content'),
 
     'sources' => [
