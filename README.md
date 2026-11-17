@@ -6,15 +6,12 @@ The package reads files from disk. It does not load Statamic entries.
 
 ## Install
 
-Add the private repository and require the package:
+Add the repository and require the package:
 
 ```bash
-composer config repositories.statamic-content-backups vcs git@github.com:hftporg/statamic-content-backups.git
-composer config preferred-install.hftp/statamic-content-backups source
+composer config repositories.statamic-content-backups vcs https://github.com/hftporg/statamic-content-backups.git
 composer require hftp/statamic-content-backups
 ```
-
-Install from source over SSH. A GitHub token that cannot read this private repository makes Composer's zip download return 404, and Composer then refuses the git fallback.
 
 Publish the config when a site needs paths or excludes that differ from the defaults:
 
