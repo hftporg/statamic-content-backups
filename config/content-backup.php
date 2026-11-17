@@ -34,8 +34,9 @@ return [
     | Retention
     |--------------------------------------------------------------------------
     |
-    | How many UTC date folders to keep. latest/ and current.json are never
-    | deleted. Date folder names are always UTC.
+    | How many snapshot folders to keep. Each run writes a new folder named
+    | with the full UTC time, so a later run does not overwrite an earlier
+    | one. latest/ and current.json are never deleted.
     |
     */
 

@@ -1,6 +1,6 @@
 # hftp/statamic-content-backups
 
-Publishes Statamic collection files to a private S3 bucket every night. `latest/` is the current tree. Older nights are UTC date folders. `current.json` is written last and is the signal that the tree is complete.
+Publishes Statamic collection files to a private S3 bucket. `latest/` is the current tree. Each run also writes a new folder named with the full UTC time, such as `2026-11-17T07-05-00Z`, so earlier runs stay intact. `current.json` is written last and is the signal that the tree is complete.
 
 The package reads files from disk. It does not load Statamic entries.
 
@@ -37,7 +37,7 @@ CONTENT_BACKUP_PREFIX=
 
 The default source is `content/collections` and the default extension is `md`. `config/content-backup.php` can add paths or set `exclude` prefixes such as `members`.
 
-Date folders are UTC. The package does not register a schedule. Each site decides when it runs:
+`CONTENT_BACKUP_RETENTION` counts snapshot folders. A run every 6 hours with a retention of 14 keeps 14 snapshots, about three and a half days. The package does not register a schedule. Each site decides when it runs:
 
 ```php
 use Hftp\StatamicContentBackups\Jobs\PublishContentBackup;
@@ -57,7 +57,7 @@ Wait until `current.json` matches the tree you are reading.
 
 ```json
 {
-  "date": "2026-11-17",
+  "date": "2026-11-17T07-05-00Z",
   "generated_at": "2026-11-17T07:05:00Z",
   "files": 5767,
   "bytes": 34000000

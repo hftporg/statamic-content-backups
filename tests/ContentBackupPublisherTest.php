@@ -47,13 +47,13 @@ class ContentBackupPublisherTest extends TestCase
         $report = $this->publisher()->publish();
         $disk = Storage::disk('content_backups');
 
-        $this->assertSame('2026-11-17', $report->date);
+        $this->assertSame('2026-11-17T12-00-00Z', $report->date);
         $this->assertSame(2, $report->files);
         $this->assertSame(2, $report->uploaded);
         $this->assertSame("---\npublished: false\n---\n", $disk->get('latest/blog/draft.md'));
-        $this->assertSame("---\ntitle: Hello\n---\n", $disk->get('2026-11-17/blog/post.md'));
+        $this->assertSame("---\ntitle: Hello\n---\n", $disk->get('2026-11-17T12-00-00Z/blog/post.md'));
         $this->assertFalse($disk->exists('latest/notes.txt'));
-        $this->assertFalse($disk->exists('2026-11-17/notes.txt'));
+        $this->assertFalse($disk->exists('2026-11-17T12-00-00Z/notes.txt'));
     }
 
     public function test_manifests_report_the_file_count_bytes_and_date(): void
@@ -66,10 +66,10 @@ class ContentBackupPublisherTest extends TestCase
         $disk = Storage::disk('content_backups');
         $current = json_decode($disk->get('current.json'), true);
         $latest = json_decode($disk->get('latest/_manifest.json'), true);
-        $dated = json_decode($disk->get('2026-11-17/_manifest.json'), true);
+        $dated = json_decode($disk->get('2026-11-17T07-05-00Z/_manifest.json'), true);
 
         $expected = [
-            'date' => '2026-11-17',
+            'date' => '2026-11-17T07-05-00Z',
             'generated_at' => '2026-11-17T07:05:00Z',
             'files' => 1,
             'bytes' => 5,
@@ -94,7 +94,7 @@ class ContentBackupPublisherTest extends TestCase
         $this->assertFalse($disk->exists('latest/members/person.md'));
     }
 
-    public function test_a_removed_file_is_deleted_from_latest_and_the_date_prefix(): void
+    public function test_a_removed_file_leaves_the_earlier_snapshot_and_drops_out_of_latest(): void
     {
         $this->travelTo(Carbon::parse('2026-11-17 12:00:00', 'UTC'));
         $this->writeFile('blog/kept.md', 'kept');
@@ -102,13 +102,15 @@ class ContentBackupPublisherTest extends TestCase
         $this->publisher()->publish();
 
         unlink($this->root.'/blog/gone.md');
+        $this->travelTo(Carbon::parse('2026-11-17 18:00:00', 'UTC'));
         $report = $this->publisher()->publish();
 
         $disk = Storage::disk('content_backups');
 
-        $this->assertSame(2, $report->deleted);
+        $this->assertSame(1, $report->deleted);
+        $this->assertSame('gone', $disk->get('2026-11-17T12-00-00Z/blog/gone.md'));
+        $this->assertFalse($disk->exists('2026-11-17T18-00-00Z/blog/gone.md'));
         $this->assertFalse($disk->exists('latest/blog/gone.md'));
-        $this->assertFalse($disk->exists('2026-11-17/blog/gone.md'));
         $this->assertSame('kept', $disk->get('latest/blog/kept.md'));
         $this->assertSame(1, json_decode($disk->get('current.json'), true)['files']);
     }
@@ -128,9 +130,9 @@ class ContentBackupPublisherTest extends TestCase
         $directories = $disk->directories();
         sort($directories);
 
-        $this->assertSame(['2026-11-18', 'latest'], $directories);
+        $this->assertSame(['2026-11-18T12-00-00Z', 'latest'], $directories);
         $this->assertSame('hello', $disk->get('latest/blog/post.md'));
-        $this->assertSame('2026-11-18', json_decode($disk->get('current.json'), true)['date']);
+        $this->assertSame('2026-11-18T12-00-00Z', json_decode($disk->get('current.json'), true)['date']);
     }
 
     public function test_an_unchanged_file_is_copied_instead_of_uploaded(): void
@@ -140,7 +142,12 @@ class ContentBackupPublisherTest extends TestCase
         $this->writeFile('blog/other.md', 'other');
 
         $first = $this->publisher()->publish();
+        $this->travelTo(Carbon::parse('2026-11-17 18:00:00', 'UTC'));
         $second = $this->publisher()->publish();
+
+        $disk = Storage::disk('content_backups');
+        $this->assertSame('hello', $disk->get('2026-11-17T12-00-00Z/blog/post.md'));
+        $this->assertSame('hello', $disk->get('2026-11-17T18-00-00Z/blog/post.md'));
 
         $this->assertSame(2, $first->uploaded);
         $this->assertSame(2, $first->copied);
@@ -156,11 +163,14 @@ class ContentBackupPublisherTest extends TestCase
         $this->publisher()->publish();
 
         $this->writeFile('blog/post.md', 'hello!');
+        $this->travelTo(Carbon::parse('2026-11-17 18:00:00', 'UTC'));
         $report = $this->publisher()->publish();
 
+        $disk = Storage::disk('content_backups');
         $this->assertSame(1, $report->uploaded);
         $this->assertSame(2, $report->copied);
-        $this->assertSame('hello!', Storage::disk('content_backups')->get('latest/blog/post.md'));
+        $this->assertSame('hello', $disk->get('2026-11-17T12-00-00Z/blog/post.md'));
+        $this->assertSame('hello!', $disk->get('latest/blog/post.md'));
     }
 
     public function test_the_date_prefix_uses_utc_when_eastern_time_is_still_the_previous_day(): void
@@ -170,8 +180,8 @@ class ContentBackupPublisherTest extends TestCase
 
         $report = $this->publisher()->publish();
 
-        $this->assertSame('2026-11-18', $report->date);
-        $this->assertTrue(Storage::disk('content_backups')->exists('2026-11-18/blog/post.md'));
+        $this->assertSame('2026-11-18T04-30-00Z', $report->date);
+        $this->assertTrue(Storage::disk('content_backups')->exists('2026-11-18T04-30-00Z/blog/post.md'));
     }
 
     public function test_publish_fails_when_the_source_directory_is_missing(): void

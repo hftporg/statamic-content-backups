@@ -18,7 +18,7 @@ class ContentBackupPublisher
     {
         $disk = $this->disk();
         $files = $this->files();
-        $date = now()->utc()->toDateString();
+        $date = now()->utc()->format('Y-m-d\TH-i-s\Z');
         $generatedAt = now()->utc()->format('Y-m-d\TH:i:s\Z');
         $latestChecksums = $this->checksums($disk, 'latest');
 
@@ -358,7 +358,7 @@ class ContentBackupPublisher
         foreach ($directories as $directory) {
             $name = trim($directory, '/');
 
-            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $name) === 1) {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z$/', $name) === 1) {
                 $dates[] = $name;
             }
         }
