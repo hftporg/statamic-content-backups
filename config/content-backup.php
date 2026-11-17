@@ -42,6 +42,18 @@ return [
 
     'retention' => (int) env('CONTENT_BACKUP_RETENTION', 14),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Disk
+    |--------------------------------------------------------------------------
+    |
+    | Name of an s3 disk in the application's filesystems config. That disk
+    | owns the bucket, endpoint, credentials, and root prefix. The driver
+    | must be s3, which is what S3-compatible services such as DigitalOcean
+    | Spaces use.
+    |
+    */
+
     'disk' => env('CONTENT_BACKUP_DISK', 'content_backups'),
 
     /*
@@ -62,30 +74,6 @@ return [
         'worker_timeout' => (int) env('CONTENT_BACKUP_WORKER_TIMEOUT', 1860),
         'retry_after' => (int) env('CONTENT_BACKUP_RETRY_AFTER', 2100),
         'memory' => (int) env('CONTENT_BACKUP_MEMORY', 256),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Filesystem
-    |--------------------------------------------------------------------------
-    |
-    | prefix is the disk root. Sites that share a bucket use a different
-    | prefix (hftp, hitec, and so on). Leave it empty for a dedicated bucket.
-    |
-    */
-
-    'filesystem' => [
-        'key' => env('CONTENT_BACKUP_AWS_ACCESS_KEY_ID'),
-        'secret' => env('CONTENT_BACKUP_AWS_SECRET_ACCESS_KEY'),
-        'region' => env('CONTENT_BACKUP_AWS_DEFAULT_REGION', 'us-east-1'),
-        'bucket' => env('CONTENT_BACKUP_BUCKET'),
-        'prefix' => env('CONTENT_BACKUP_PREFIX', ''),
-        'url' => env('CONTENT_BACKUP_AWS_URL'),
-        'endpoint' => env('CONTENT_BACKUP_AWS_ENDPOINT'),
-        'use_path_style_endpoint' => filter_var(
-            env('CONTENT_BACKUP_AWS_USE_PATH_STYLE_ENDPOINT', false),
-            FILTER_VALIDATE_BOOL,
-        ),
     ],
 
 ];

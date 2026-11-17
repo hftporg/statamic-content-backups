@@ -25,6 +25,9 @@ class ContentBackupPublisherTest extends TestCase
             'content-backup.paths' => [$this->root],
             'content-backup.retention' => 14,
             'content-backup.exclude' => [],
+            'filesystems.disks.content_backups' => [
+                'driver' => 'local',
+            ],
         ]);
 
         Storage::fake('content_backups');
@@ -190,6 +193,26 @@ class ContentBackupPublisherTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('is not a directory');
+
+        $this->publisher()->publish();
+    }
+
+    public function test_publish_fails_when_the_disk_is_not_configured(): void
+    {
+        config(['filesystems.disks.content_backups' => null]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Content backup disk [content_backups] is not configured.');
+
+        $this->publisher()->publish();
+    }
+
+    public function test_publish_fails_when_the_disk_is_not_s3(): void
+    {
+        config(['filesystems.disks.content_backups.driver' => 'ftp']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Content backup disk [content_backups] must use the s3 driver.');
 
         $this->publisher()->publish();
     }

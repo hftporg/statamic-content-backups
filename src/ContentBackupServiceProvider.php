@@ -16,7 +16,6 @@ class ContentBackupServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->registerDisk();
         $this->registerQueueConnection();
         $this->registerHorizonSupervisor();
 
@@ -29,33 +28,6 @@ class ContentBackupServiceProvider extends ServiceProvider
                 dirname(__DIR__).'/config/content-backup.php' => config_path('content-backup.php'),
             ], 'content-backup-config');
         }
-    }
-
-    private function registerDisk(): void
-    {
-        $name = (string) config('content-backup.disk');
-
-        if (config("filesystems.disks.{$name}") !== null) {
-            return;
-        }
-
-        $filesystem = config('content-backup.filesystem');
-
-        config([
-            "filesystems.disks.{$name}" => [
-                'driver' => 's3',
-                'key' => $filesystem['key'] ?? null,
-                'secret' => $filesystem['secret'] ?? null,
-                'region' => $filesystem['region'] ?? null,
-                'bucket' => $filesystem['bucket'] ?? null,
-                'url' => $filesystem['url'] ?? null,
-                'endpoint' => $filesystem['endpoint'] ?? null,
-                'use_path_style_endpoint' => (bool) ($filesystem['use_path_style_endpoint'] ?? false),
-                'root' => (string) ($filesystem['prefix'] ?? ''),
-                'throw' => true,
-                'visibility' => 'private',
-            ],
-        ]);
     }
 
     private function registerQueueConnection(): void

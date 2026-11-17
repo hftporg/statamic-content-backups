@@ -1,6 +1,6 @@
 # hftp/statamic-content-backups
 
-Publishes Statamic collection files to a private S3 bucket. `latest/` is the current tree. Each run also writes a new folder named with the full UTC time, such as `2026-11-17T07-05-00Z`, so earlier runs stay intact. `current.json` is written last and is the signal that the tree is complete.
+Publishes Statamic collection files to an S3-compatible disk. `latest/` is the current tree. Each run also writes a new folder named with the full UTC time, such as `2026-11-17T07-05-00Z`, so earlier runs stay intact. `current.json` is written last and is the signal that the tree is complete.
 
 The package reads files from disk. It does not load Statamic entries.
 
@@ -19,18 +19,30 @@ Publish the config when a site needs paths or excludes that differ from the defa
 php artisan vendor:publish --tag=content-backup-config
 ```
 
-## Environment
+## Disk
+
+Point `content-backup.disk` at an `s3` disk in `config/filesystems.php`. The package reads that disk and does not take bucket credentials. DigitalOcean Spaces uses this driver with its own endpoint. Set `root` when sites share a bucket and need different prefixes. Leave `root` empty for a dedicated bucket. `throw` should be true.
+
+```php
+'content_backups' => [
+    'driver' => 's3',
+    'key' => env('CONTENT_BACKUP_ACCESS_KEY_ID'),
+    'secret' => env('CONTENT_BACKUP_SECRET_ACCESS_KEY'),
+    'region' => env('CONTENT_BACKUP_DEFAULT_REGION'),
+    'bucket' => env('CONTENT_BACKUP_BUCKET'),
+    'endpoint' => env('CONTENT_BACKUP_ENDPOINT'),
+    'url' => env('CONTENT_BACKUP_URL'),
+    'use_path_style_endpoint' => false,
+    'root' => env('CONTENT_BACKUP_ROOT', ''),
+    'visibility' => 'private',
+    'throw' => true,
+],
+```
 
 ```dotenv
 CONTENT_BACKUP_RETENTION=14
-CONTENT_BACKUP_BUCKET=
-CONTENT_BACKUP_AWS_ACCESS_KEY_ID=
-CONTENT_BACKUP_AWS_SECRET_ACCESS_KEY=
-CONTENT_BACKUP_AWS_DEFAULT_REGION=us-east-1
-CONTENT_BACKUP_PREFIX=
+CONTENT_BACKUP_DISK=content_backups
 ```
-
-`CONTENT_BACKUP_PREFIX` is the disk root. Sites that share a bucket set a different prefix. Leave it empty when the bucket is dedicated to one site.
 
 The default source is `content/collections` and the default extension is `md`. `config/content-backup.php` can add paths or set `exclude` prefixes such as `members`.
 

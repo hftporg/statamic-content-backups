@@ -24,19 +24,12 @@ class ContentBackupDisabledTest extends TestCase
             'timeout' => 999,
             'maxProcesses' => 4,
         ]);
-        $app['config']->set('filesystems.disks.content_backups', [
-            'driver' => 's3',
-            'throw' => false,
-            'visibility' => 'public',
-        ]);
     }
 
-    public function test_an_existing_queue_connection_supervisor_and_disk_are_left_alone(): void
+    public function test_an_existing_queue_connection_and_supervisor_are_left_alone(): void
     {
         $this->assertSame(50, config('queue.connections.content-backup.retry_after'));
         $this->assertSame(999, config('horizon.defaults.supervisor-content-backup.timeout'));
         $this->assertSame(4, config('horizon.defaults.supervisor-content-backup.maxProcesses'));
-        $this->assertFalse(config('filesystems.disks.content_backups.throw'));
-        $this->assertSame('public', config('filesystems.disks.content_backups.visibility'));
     }
 }

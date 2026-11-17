@@ -79,6 +79,18 @@ class ContentBackupPublisher
     private function disk(): FilesystemAdapter
     {
         $name = (string) config('content-backup.disk');
+        $configured = config("filesystems.disks.{$name}");
+
+        if (! is_array($configured)) {
+            throw new RuntimeException("Content backup disk [{$name}] is not configured.");
+        }
+
+        $driver = $configured['driver'] ?? null;
+
+        if ($driver !== 's3' && ! (app()->runningUnitTests() && $driver === 'local')) {
+            throw new RuntimeException("Content backup disk [{$name}] must use the s3 driver.");
+        }
+
         $disk = Storage::disk($name);
 
         if (! $disk instanceof FilesystemAdapter) {

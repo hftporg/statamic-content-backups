@@ -28,12 +28,8 @@ class ContentBackupServiceProviderTest extends TestCase
         $this->assertLessThan($retryAfter, $workerTimeout);
     }
 
-    public function test_the_disk_is_private_and_throws(): void
+    public function test_the_package_does_not_register_a_filesystem_disk(): void
     {
-        $disk = config('filesystems.disks.content_backups');
-
-        $this->assertSame('s3', $disk['driver']);
-        $this->assertTrue($disk['throw']);
-        $this->assertSame('private', $disk['visibility']);
+        $this->assertNull(config('filesystems.disks.content_backups'));
     }
 }
