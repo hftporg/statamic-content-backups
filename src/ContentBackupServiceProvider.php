@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Hftp\StatamicContentBackups;
 
 use Hftp\StatamicContentBackups\Console\BackupContentCommand;
