@@ -327,12 +327,38 @@ class ContentBackupPublisherTest extends TestCase
         $this->publisher()->publish();
     }
 
-    public function test_the_command_publishes_the_snapshot(): void
+    public function test_the_command_does_not_publish_when_disabled(): void
     {
+        config(['content-backup.enabled' => false]);
+        $this->writeFile('collections/blog/post.md', 'hello');
+
+        $this->artisan('content-backup:run')
+            ->expectsOutputToContain('Content backup is disabled.')
+            ->assertSuccessful();
+
+        $this->assertFalse(Storage::disk('content_backups')->exists('current.json'));
+    }
+
+    public function test_the_command_publishes_when_enabled(): void
+    {
+        config(['content-backup.enabled' => true]);
         $this->travelTo(Carbon::parse('2026-11-17 12:00:00', 'UTC'));
         $this->writeFile('collections/blog/post.md', 'hello');
 
         $this->artisan('content-backup:run')
+            ->expectsOutputToContain('Published 1 files')
+            ->assertSuccessful();
+
+        $this->assertSame('hello', Storage::disk('content_backups')->get('latest/collections/blog/post.md'));
+    }
+
+    public function test_the_command_publishes_when_forced(): void
+    {
+        config(['content-backup.enabled' => false]);
+        $this->travelTo(Carbon::parse('2026-11-17 12:00:00', 'UTC'));
+        $this->writeFile('collections/blog/post.md', 'hello');
+
+        $this->artisan('content-backup:run', ['--force' => true])
             ->expectsOutputToContain('Published 1 files')
             ->assertSuccessful();
 

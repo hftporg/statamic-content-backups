@@ -46,7 +46,7 @@ CONTENT_BACKUP_DISK=content_backups
 CONTENT_BACKUP_ROOT=
 ```
 
-`CONTENT_BACKUP_ENABLED` defaults to false. The scheduled job returns without publishing until it is true. `content-backup:run` still publishes when you invoke it.
+`CONTENT_BACKUP_ENABLED` defaults to false. The scheduled job and `content-backup:run` return without publishing until it is true. Pass `--force` to publish from the command anyway.
 
 Sources are globs relative to `content/`. The default is `collections/**/*.md`. Add another glob for a different directory or extension, such as `taxonomies/**/*.yaml`. `**` crosses directories and `*` stays inside one directory. Keys keep that path, so `content/collections/blog/post.md` is stored as `collections/blog/post.md`. `exclude` prefixes such as `collections/members` are also relative to `content/`.
 
@@ -59,8 +59,7 @@ use Illuminate\Support\Facades\Schedule;
 Schedule::job(PublishContentBackup::class)
     ->dailyAt('02:00')
     ->onOneServer()
-    ->withoutOverlapping(120)
-    ->when(fn () => config('content-backup.enabled'));
+    ->withoutOverlapping(120);
 ```
 
 `dailyAt()` uses `config('app.timezone')`. Add `->timezone('America/New_York')` when that zone is different from the one you want the clock read in.
@@ -85,7 +84,7 @@ The bucket is private. Grant the ingest read access to that site's prefix.
 ## Manual run
 
 ```bash
-php artisan content-backup:run
+php artisan content-backup:run --force
 ```
 
-The command runs the publish in the current process. The scheduled job is the one that uses the `content-backup` queue.
+The command runs the publish in the current process. Without `--force` it stops when content backups are disabled. The scheduled job is the one that uses the `content-backup` queue, and it stops in the same case.
