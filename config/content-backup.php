@@ -58,6 +58,14 @@ return [
     'disk' => env('CONTENT_BACKUP_DISK', 'content_backups'),
 
     /*
+    | How many S3 requests to run at once. The files are small, so the wait
+    | is the round trip. 24 keeps a full upload moving without a large burst.
+    |
+    */
+
+    'concurrency' => 24,
+
+    /*
     |--------------------------------------------------------------------------
     | Queue
     |--------------------------------------------------------------------------

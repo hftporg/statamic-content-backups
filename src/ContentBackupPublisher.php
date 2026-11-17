@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Hftp\StatamicContentBackups;
 
+use Aws\CommandInterface;
+use Aws\CommandPool;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +13,7 @@ use League\Flysystem\UnableToListContents;
 use RuntimeException;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
+use Throwable;
 
 class ContentBackupPublisher
 {
@@ -22,57 +25,65 @@ class ContentBackupPublisher
         $generatedAt = now()->utc()->format('Y-m-d\TH:i:s\Z');
         $latestChecksums = $this->checksums($disk, 'latest');
 
-        $uploaded = 0;
-        $copied = 0;
+        $changed = [];
         $keep = [];
 
         foreach ($files as $file) {
             $keep[$file['key']] = true;
-            $destination = $date.'/'.$file['key'];
 
-            if (Etag::matchesContent($file['md5'], $latestChecksums[$file['key']] ?? null)) {
-                $this->copy($disk, 'latest/'.$file['key'], $destination);
-                $copied++;
-
-                continue;
+            if (! Etag::matchesContent($file['md5'], $latestChecksums[$file['key']] ?? null)) {
+                $changed[] = $file;
             }
-
-            $this->write($disk, $destination, $file['absolute_path']);
-            $uploaded++;
         }
 
-        $deleted = $this->deleteMissing($disk, $date, $keep);
+        $removed = [];
 
-        $payload = [
+        foreach (array_keys($latestChecksums) as $key) {
+            if (! isset($keep[$key])) {
+                $removed[] = $key;
+            }
+        }
+
+        $this->copyAll($disk, array_map(
+            fn (string $key): array => ['from' => 'latest/'.$key, 'to' => $date.'/'.$key],
+            $removed,
+        ));
+        $this->writeAll($disk, array_map(
+            fn (array $file): array => ['key' => $date.'/'.$file['key'], 'path' => $file['absolute_path']],
+            $changed,
+        ));
+
+        $summary = [
             'date' => $date,
             'generated_at' => $generatedAt,
             'files' => count($files),
             'bytes' => array_sum(array_column($files, 'bytes')),
         ];
 
-        $this->writeJson($disk, $date.'/_manifest.json', $payload);
-
-        foreach ($files as $file) {
-            if (Etag::matchesContent($file['md5'], $latestChecksums[$file['key']] ?? null)) {
-                continue;
-            }
-
-            $this->copy($disk, $date.'/'.$file['key'], 'latest/'.$file['key']);
-            $copied++;
-        }
-
-        $deleted += $this->deleteMissing($disk, 'latest', $keep);
-        $this->writeJson($disk, 'latest/_manifest.json', $payload);
-        $this->writeJson($disk, 'current.json', $payload);
+        $this->writeJson($disk, $date.'/_manifest.json', [
+            ...$summary,
+            'changed' => array_column($changed, 'key'),
+            'removed' => $removed,
+        ]);
+        $this->copyAll($disk, array_map(
+            fn (array $file): array => ['from' => $date.'/'.$file['key'], 'to' => 'latest/'.$file['key']],
+            $changed,
+        ));
+        $this->deleteAll($disk, array_map(
+            fn (string $key): string => 'latest/'.$key,
+            $removed,
+        ));
+        $this->writeJson($disk, 'latest/_manifest.json', $summary);
+        $this->writeJson($disk, 'current.json', $summary);
         $this->prune($disk, (int) config('content-backup.retention'));
 
         return new BackupReport(
             date: $date,
-            files: $payload['files'],
-            bytes: $payload['bytes'],
-            uploaded: $uploaded,
-            copied: $copied,
-            deleted: $deleted,
+            files: $summary['files'],
+            bytes: $summary['bytes'],
+            uploaded: count($changed),
+            copied: count($changed) + count($removed),
+            deleted: count($removed),
         );
     }
 
@@ -289,11 +300,156 @@ class ContentBackupPublisher
         return $path;
     }
 
-    private function copy(FilesystemAdapter $disk, string $from, string $to): void
+    /**
+     * @param  list<array{from: string, to: string}>  $copies
+     */
+    private function copyAll(FilesystemAdapter $disk, array $copies): void
     {
-        if ($disk->copy($from, $to) === false) {
-            throw new RuntimeException("Content backup could not copy [{$from}] to [{$to}].");
+        if ($copies === []) {
+            return;
         }
+
+        if ($disk instanceof AwsS3V3Adapter) {
+            $bucket = $this->bucket($disk);
+            $client = $disk->getClient();
+
+            $this->pooled($disk, array_map(
+                fn (array $copy): CommandInterface => $client->getCommand('CopyObject', [
+                    'Bucket' => $bucket,
+                    'Key' => $this->objectKey($disk, $copy['to']),
+                    'CopySource' => '/'.$bucket.'/'.rawurlencode($this->objectKey($disk, $copy['from'])),
+                    'ACL' => 'private',
+                    'MetadataDirective' => 'COPY',
+                ]),
+                $copies,
+            ));
+
+            return;
+        }
+
+        foreach ($copies as $copy) {
+            if ($disk->copy($copy['from'], $copy['to']) === false) {
+                throw new RuntimeException("Content backup could not copy [{$copy['from']}] to [{$copy['to']}].");
+            }
+        }
+    }
+
+    /**
+     * @param  list<array{key: string, path: string}>  $writes
+     */
+    private function writeAll(FilesystemAdapter $disk, array $writes): void
+    {
+        if ($writes === []) {
+            return;
+        }
+
+        if ($disk instanceof AwsS3V3Adapter) {
+            $bucket = $this->bucket($disk);
+            $client = $disk->getClient();
+
+            $this->pooled($disk, array_map(
+                fn (array $write): CommandInterface => $client->getCommand('PutObject', [
+                    'Bucket' => $bucket,
+                    'Key' => $this->objectKey($disk, $write['key']),
+                    'SourceFile' => $write['path'],
+                    'ACL' => 'private',
+                ]),
+                $writes,
+            ));
+
+            return;
+        }
+
+        foreach ($writes as $write) {
+            $this->write($disk, $write['key'], $write['path']);
+        }
+    }
+
+    /**
+     * @param  list<string>  $keys
+     */
+    private function deleteAll(FilesystemAdapter $disk, array $keys): void
+    {
+        if ($keys === []) {
+            return;
+        }
+
+        if ($disk instanceof AwsS3V3Adapter) {
+            $client = $disk->getClient();
+            $bucket = $this->bucket($disk);
+
+            foreach (array_chunk($keys, 1000) as $chunk) {
+                $result = $client->deleteObjects([
+                    'Bucket' => $bucket,
+                    'Delete' => [
+                        'Objects' => array_map(
+                            fn (string $key): array => ['Key' => $this->objectKey($disk, $key)],
+                            $chunk,
+                        ),
+                        'Quiet' => true,
+                    ],
+                ]);
+
+                $errors = $result['Errors'] ?? [];
+
+                if ($errors !== []) {
+                    $key = (string) ($errors[0]['Key'] ?? '');
+                    $message = (string) ($errors[0]['Message'] ?? 'delete failed');
+
+                    throw new RuntimeException("Content backup could not delete [{$key}]: {$message}");
+                }
+            }
+
+            return;
+        }
+
+        foreach ($keys as $key) {
+            if ($disk->delete($key) === false) {
+                throw new RuntimeException("Content backup could not delete [{$key}].");
+            }
+        }
+    }
+
+    /**
+     * @param  list<CommandInterface>  $commands
+     */
+    private function pooled(AwsS3V3Adapter $disk, array $commands): void
+    {
+        $failure = null;
+
+        $pool = new CommandPool($disk->getClient(), $commands, [
+            'concurrency' => max(1, (int) config('content-backup.concurrency', 24)),
+            'rejected' => function (mixed $reason) use (&$failure): void {
+                if ($failure === null) {
+                    $failure = $reason;
+                }
+            },
+        ]);
+
+        $pool->promise()->wait();
+
+        if ($failure instanceof Throwable) {
+            throw new RuntimeException('Content backup could not complete an S3 request: '.$failure->getMessage(), previous: $failure);
+        }
+    }
+
+    private function bucket(AwsS3V3Adapter $disk): string
+    {
+        $bucket = $disk->getConfig()['bucket'] ?? null;
+
+        if (! is_string($bucket) || $bucket === '') {
+            throw new RuntimeException('Content backup disk has no bucket.');
+        }
+
+        return $bucket;
+    }
+
+    private function objectKey(AwsS3V3Adapter $disk, string $key): string
+    {
+        $root = trim((string) ($disk->getConfig()['root'] ?? ''), '/');
+        $key = ltrim($key, '/');
+
+        return $root === '' ? $key : $root.'/'.$key;
     }
 
     private function write(FilesystemAdapter $disk, string $key, string $absolutePath): void
@@ -318,37 +474,7 @@ class ContentBackupPublisher
     }
 
     /**
-     * @param  array<string, true>  $keep
-     */
-    private function deleteMissing(FilesystemAdapter $disk, string $directory, array $keep): int
-    {
-        try {
-            $paths = $disk->allFiles($directory);
-        } catch (UnableToListContents) {
-            return 0;
-        }
-
-        $deleted = 0;
-
-        foreach ($paths as $path) {
-            $relative = $this->relative($path, $directory);
-
-            if ($relative === '' || $relative === '_manifest.json' || isset($keep[$relative])) {
-                continue;
-            }
-
-            if ($disk->delete($path) === false) {
-                throw new RuntimeException("Content backup could not delete [{$path}].");
-            }
-
-            $deleted++;
-        }
-
-        return $deleted;
-    }
-
-    /**
-     * @param  array{date: string, generated_at: string, files: int, bytes: int}  $payload
+     * @param  array{date: string, generated_at: string, files: int, bytes: int, changed?: list<string>, removed?: list<string>}  $payload
      */
     private function writeJson(FilesystemAdapter $disk, string $path, array $payload): void
     {

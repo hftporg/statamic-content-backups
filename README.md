@@ -1,6 +1,6 @@
 # hftp/statamic-content-backups
 
-Publishes Statamic collection files to an S3-compatible disk. `latest/` is the current tree. Each run also writes a new folder named with the full UTC time, such as `2026-11-17T07-05-00Z`, so earlier runs stay intact. `current.json` is written last and is the signal that the tree is complete.
+Publishes Statamic collection files to an S3-compatible disk. `latest/` is the current tree. Each run also writes a folder named with the full UTC time, such as `2026-11-17T07-05-00Z`. That folder records the run: the files that changed, the files that were removed, and a manifest. Unchanged files stay in `latest/`. `current.json` is written last and is the signal that `latest/` is complete.
 
 The package reads files from disk. It does not load Statamic entries.
 
@@ -74,7 +74,7 @@ Wait until `current.json` matches the tree you are reading.
 }
 ```
 
-`published: false` stays in the file. A path that disappears from `latest/` was deleted. This package does not interpret either signal.
+`published: false` stays in the file. A path that disappears from `latest/` was deleted. A timestamp folder is the change for that run, not a second copy of the tree. Its manifest lists `changed` and `removed`. This package does not interpret `published`.
 
 The bucket is private. Grant the ingest read access to that site's prefix.
 
