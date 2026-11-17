@@ -91,6 +91,10 @@ class ContentBackupPublisher
             throw new RuntimeException("Content backup disk [{$name}] must use the s3 driver.");
         }
 
+        if ($driver === 's3' && trim((string) ($configured['root'] ?? ''), '/') === '') {
+            throw new RuntimeException("Content backup disk [{$name}] must set a root. An empty root would store objects at the bucket root.");
+        }
+
         $disk = Storage::disk($name);
 
         if (! $disk instanceof FilesystemAdapter) {

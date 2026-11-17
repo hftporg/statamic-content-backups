@@ -217,6 +217,21 @@ class ContentBackupPublisherTest extends TestCase
         $this->publisher()->publish();
     }
 
+    public function test_publish_fails_when_an_s3_disk_has_no_root(): void
+    {
+        config([
+            'filesystems.disks.content_backups' => [
+                'driver' => 's3',
+                'root' => '',
+            ],
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Content backup disk [content_backups] must set a root.');
+
+        $this->publisher()->publish();
+    }
+
     public function test_publish_fails_when_two_sources_share_a_relative_path(): void
     {
         $other = sys_get_temp_dir().'/content-backup-other-'.uniqid();
